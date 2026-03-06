@@ -1,0 +1,38 @@
+# binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+./openapi-guard
+
+# test binaries
+*.test
+
+# coverage output
+*.out
+coverage.out
+
+# go workspace
+go.work
+
+# build artifacts
+bin/
+dist/
+build/
+
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+!.vscode/*.code-snippets
+
+# local history
+.history/
+
+# extension packages
+*.vsix
+
+.DS_Store
+Thumbs.db

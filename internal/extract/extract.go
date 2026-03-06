@@ -1,0 +1,263 @@
+package extract
+
+import (
+	"fmt"
+	"strings"
+
+	"github.com/onatbaker/openapi-guard/internal/model"
+	"github.com/onatbaker/openapi-guard/internal/spec"
+)
+
+var httpMethods = map[string]bool{
+	"get":     true,
+	"post":    true,
+	"put":     true,
+	"delete":  true,
+	"patch":   true,
+	"head":    true,
+	"options": true,
+}
+
+func Extract(doc spec.Document) (model.API, error) {
+	api := model.API{
+		Endpoints: make(map[string]model.Endpoint),
+	}
+	resolver := spec.NewResolver(doc)
+
+	pathsAny, ok := doc["paths"]
+	if !ok {
+		return api, fmt.Errorf("missing 'paths'")
+	}
+
+	paths, ok := pathsAny.(map[string]any)
+	if !ok {
+		return api, fmt.Errorf("'paths' must be an object")
+	}
+
+	for path, pathItemAny := range paths {
+		pathItem, ok := pathItemAny.(map[string]any)
+		if !ok {
+			continue
+		}
+
+		pathLevelParams := extractParameters(pathItem["parameters"], resolver)
+
+		for method, opAny := range pathItem {
+			methodLower := strings.ToLower(method)
+			if !httpMethods[methodLower] {
+				continue
+			}
+
+			op, ok := opAny.(map[string]any)
+			if !ok {
+				continue
+			}
+
+			ep := model.Endpoint{
+				Method: strings.ToUpper(methodLower),
+				Path:   path,
+				Params: make(map[model.ParamKey]model.Param),
+			}
+
+			for k, p := range pathLevelParams {
+				ep.Params[k] = p
+			}
+
+			opParams := extractParameters(op["parameters"], resolver)
+			for k, p := range opParams {
+				ep.Params[k] = p
+			}
+
+			schema, has200, err := extractResponse200JSON(op, resolver)
+			if err != nil {
+				return api, err
+			}
+			if has200 {
+				ep.Response200 = schema
+				ep.HasResponse200 = true
+			}
+
+			key := endpointKey(ep.Method, ep.Path)
+			api.Endpoints[key] = ep
+		}
+	}
+
+	return api, nil
+}
+
+func endpointKey(method string, path string) string {
+	return method + " " + path
+}
+
+func extractParameters(paramsAny any, resolver *spec.Resolver) map[model.ParamKey]model.Param {
+	out := make(map[model.ParamKey]model.Param)
+
+	list, ok := paramsAny.([]any)
+	if !ok {
+		return out
+	}
+
+	for _, item := range list {
+		m, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+
+		inStr, _ := m["in"].(string)
+		name, _ := m["name"].(string)
+
+		if inStr != "path" && inStr != "query" {
+			continue
+		}
+		if name == "" {
+			continue
+		}
+
+		required, _ := m["required"].(bool)
+
+		var typ string
+		var enum []string
+
+		if schemaAny, ok := m["schema"].(map[string]any); ok {
+			resolved, err := resolver.ResolveSchema(schemaAny)
+			if err == nil {
+				typ, enum = extractTypeAndEnum(resolved)
+			}
+			// TODO: this ignores resolve errors please fix!!!!!!!!!!!!!!!!!!!!!!!
+		}
+
+		p := model.Param{
+			In:       inStr,
+			Name:     name,
+			Required: required,
+			Type:     typ,
+			Enum:     enum,
+		}
+
+		out[model.ParamKey{In: inStr, Name: name}] = p
+	}
+
+	return out
+}
+
+func extractResponse200JSON(op map[string]any, resolver *spec.Resolver) (model.SchemaObject, bool, error) {
+	responsesAny, ok := op["responses"]
+	if !ok {
+		return model.SchemaObject{}, false, nil
+	}
+	responses, ok := responsesAny.(map[string]any)
+	if !ok {
+		return model.SchemaObject{}, false, nil
+	}
+
+	resp200Any, ok := responses["200"]
+	if !ok {
+		return model.SchemaObject{}, false, nil
+	}
+	resp200, ok := resp200Any.(map[string]any)
+	if !ok {
+		return model.SchemaObject{}, false, nil
+	}
+
+	contentAny, ok := resp200["content"]
+	if !ok {
+		return model.SchemaObject{}, false, nil
+	}
+	content, ok := contentAny.(map[string]any)
+	if !ok {
+		return model.SchemaObject{}, false, nil
+	}
+
+	appAny, ok := content["application/json"]
+	if !ok {
+		return model.SchemaObject{}, false, nil
+	}
+	app, ok := appAny.(map[string]any)
+	if !ok {
+		return model.SchemaObject{}, false, nil
+	}
+
+	schemaAny, ok := app["schema"]
+	if !ok {
+		return model.SchemaObject{}, false, nil
+	}
+	schema, ok := schemaAny.(map[string]any)
+	if !ok {
+		return model.SchemaObject{}, false, nil
+	}
+	resolved, err := resolver.ResolveSchema(schema)
+	if err != nil {
+		return model.SchemaObject{}, true, err
+	}
+
+	obj, err := extractObjectSchema(resolved, resolver)
+	if err != nil {
+		return model.SchemaObject{}, true, err
+	}
+	return obj, true, nil
+}
+
+func extractObjectSchema(schema map[string]any, resolver *spec.Resolver) (model.SchemaObject, error) {
+	out := model.SchemaObject{
+		Fields:   make(map[string]model.Field),
+		Required: make(map[string]bool),
+	}
+
+	typ, _ := schema["type"].(string)
+	if typ != "object" {
+		return out, nil
+	}
+
+	if reqAny, ok := schema["required"].([]any); ok {
+		for _, r := range reqAny {
+			if s, ok := r.(string); ok {
+				out.Required[s] = true
+			}
+		}
+	}
+
+	propsAny, ok := schema["properties"].(map[string]any)
+	if !ok {
+		return out, nil
+	}
+
+	for name, pAny := range propsAny {
+		pm, ok := pAny.(map[string]any)
+		if !ok {
+			continue
+		}
+
+		pmResolved, err := resolver.ResolveSchema(pm)
+		if err != nil {
+			return model.SchemaObject{}, err
+		}
+
+		t, enum := extractTypeAndEnum(pmResolved)
+		out.Fields[name] = model.Field{
+			Type: t,
+			Enum: enum,
+		}
+	}
+
+	return out, nil
+}
+
+func extractTypeAndEnum(schema map[string]any) (string, []string) {
+	typ, _ := schema["type"].(string)
+
+	enumAny, ok := schema["enum"].([]any)
+	if !ok {
+		return typ, nil
+	}
+
+	out := make([]string, 0, len(enumAny))
+	for _, v := range enumAny {
+		s, ok := v.(string)
+		if !ok {
+			continue
+		}
+		out = append(out, s)
+	}
+
+	return typ, out
+}
