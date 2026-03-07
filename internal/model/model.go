@@ -11,6 +11,8 @@ type Endpoint struct {
 	Params         map[ParamKey]Param
 	Response200    SchemaObject
 	HasResponse200 bool
+	RequestBody    SchemaObject
+	HasRequestBody bool
 }
 
 type ParamKey struct {

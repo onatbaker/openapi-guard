@@ -25,6 +25,26 @@ paths:
               schema:
                 $ref: "#/components/schemas/User"
 
+  /users:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, role]
+              properties:
+                email:
+                  type: string
+                display_name:
+                  type: string
+                role:
+                  type: string
+      responses:
+        "201":
+          description: created
+
   /healthz:
     get:
       responses:

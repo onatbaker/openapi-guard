@@ -99,6 +99,71 @@ func Classify(changes []diff.Change) Results {
 				Message:  c.Endpoint + " narrowed enum for response field '" + c.FieldName + "'",
 			})
 
+		case diff.ParamTypeChanged:
+			out.Items = append(out.Items, Result{
+				Severity: Breaking,
+				Change:   c,
+				Message:  c.Endpoint + " changed " + c.ParamIn + " param '" + c.ParamName + "' type " + c.OldType + " -> " + c.NewType,
+			})
+
+		case diff.ParamEnumNarrowed:
+			out.Items = append(out.Items, Result{
+				Severity: Breaking,
+				Change:   c,
+				Message:  c.Endpoint + " narrowed enum for " + c.ParamIn + " param '" + c.ParamName + "'",
+			})
+
+		case diff.RequestBodyFieldAdded:
+			if c.FieldRequired {
+				out.Items = append(out.Items, Result{
+					Severity: Breaking,
+					Change:   c,
+					Message:  c.Endpoint + " added required request body field '" + c.FieldName + "'",
+				})
+			} else {
+				out.Items = append(out.Items, Result{
+					Severity: Info,
+					Change:   c,
+					Message:  c.Endpoint + " added optional request body field '" + c.FieldName + "'",
+				})
+			}
+
+		case diff.RequestBodyFieldRemoved:
+			if c.OldFieldWasRequired {
+				out.Items = append(out.Items, Result{
+					Severity: Warning,
+					Change:   c,
+					Message:  c.Endpoint + " removed required request body field '" + c.FieldName + "'",
+				})
+			} else {
+				out.Items = append(out.Items, Result{
+					Severity: Info,
+					Change:   c,
+					Message:  c.Endpoint + " removed optional request body field '" + c.FieldName + "'",
+				})
+			}
+
+		case diff.RequestBodyFieldTypeChanged:
+			out.Items = append(out.Items, Result{
+				Severity: Breaking,
+				Change:   c,
+				Message:  c.Endpoint + " changed request body field '" + c.FieldName + "' type " + c.OldType + " -> " + c.NewType,
+			})
+
+		case diff.RequestBodyRequiredPromoted:
+			out.Items = append(out.Items, Result{
+				Severity: Breaking,
+				Change:   c,
+				Message:  c.Endpoint + " request body field '" + c.FieldName + "' is now required",
+			})
+
+		case diff.RequestBodyEnumNarrowed:
+			out.Items = append(out.Items, Result{
+				Severity: Breaking,
+				Change:   c,
+				Message:  c.Endpoint + " narrowed enum for request body field '" + c.FieldName + "'",
+			})
+
 		case diff.EndpointAdded:
 			out.Items = append(out.Items, Result{
 				Severity: Info,

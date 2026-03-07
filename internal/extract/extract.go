@@ -77,6 +77,15 @@ func Extract(doc spec.Document) (model.API, error) {
 				ep.HasResponse200 = true
 			}
 
+			body, hasBody, err := extractRequestBody(op, resolver)
+			if err != nil {
+				return api, err
+			}
+			if hasBody {
+				ep.RequestBody = body
+				ep.HasRequestBody = true
+			}
+
 			key := endpointKey(ep.Method, ep.Path)
 			api.Endpoints[key] = ep
 		}
@@ -106,7 +115,7 @@ func extractParameters(paramsAny any, resolver *spec.Resolver) map[model.ParamKe
 		inStr, _ := m["in"].(string)
 		name, _ := m["name"].(string)
 
-		if inStr != "path" && inStr != "query" {
+		if inStr != "path" && inStr != "query" && inStr != "header" && inStr != "cookie" {
 			continue
 		}
 		if name == "" {
@@ -185,6 +194,55 @@ func extractResponse200JSON(op map[string]any, resolver *spec.Resolver) (model.S
 	if !ok {
 		return model.SchemaObject{}, false, nil
 	}
+	resolved, err := resolver.ResolveSchema(schema)
+	if err != nil {
+		return model.SchemaObject{}, true, err
+	}
+
+	obj, err := extractObjectSchema(resolved, resolver)
+	if err != nil {
+		return model.SchemaObject{}, true, err
+	}
+	return obj, true, nil
+}
+
+func extractRequestBody(op map[string]any, resolver *spec.Resolver) (model.SchemaObject, bool, error) {
+	rbAny, ok := op["requestBody"]
+	if !ok {
+		return model.SchemaObject{}, false, nil
+	}
+	rb, ok := rbAny.(map[string]any)
+	if !ok {
+		return model.SchemaObject{}, false, nil
+	}
+
+	contentAny, ok := rb["content"]
+	if !ok {
+		return model.SchemaObject{}, false, nil
+	}
+	content, ok := contentAny.(map[string]any)
+	if !ok {
+		return model.SchemaObject{}, false, nil
+	}
+
+	appAny, ok := content["application/json"]
+	if !ok {
+		return model.SchemaObject{}, false, nil
+	}
+	app, ok := appAny.(map[string]any)
+	if !ok {
+		return model.SchemaObject{}, false, nil
+	}
+
+	schemaAny, ok := app["schema"]
+	if !ok {
+		return model.SchemaObject{}, false, nil
+	}
+	schema, ok := schemaAny.(map[string]any)
+	if !ok {
+		return model.SchemaObject{}, false, nil
+	}
+
 	resolved, err := resolver.ResolveSchema(schema)
 	if err != nil {
 		return model.SchemaObject{}, true, err
