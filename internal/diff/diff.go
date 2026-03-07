@@ -12,11 +12,19 @@ const (
 	EndpointRemoved      ChangeKind = "EndpointRemoved"
 	ParamAdded           ChangeKind = "ParamAdded"
 	ParamRemoved         ChangeKind = "ParamRemoved"
+	ParamTypeChanged     ChangeKind = "ParamTypeChanged"
+	ParamEnumNarrowed    ChangeKind = "ParamEnumNarrowed"
 	FieldRemoved         ChangeKind = "FieldRemoved"
 	FieldTypeChanged     ChangeKind = "FieldTypeChanged"
 	RequiredFieldDemoted ChangeKind = "RequiredFieldDemoted"
 	EnumNarrowed         ChangeKind = "EnumNarrowed"
 	EndpointAdded        ChangeKind = "EndpointAdded"
+
+	RequestBodyFieldAdded      ChangeKind = "RequestBodyFieldAdded"
+	RequestBodyFieldRemoved    ChangeKind = "RequestBodyFieldRemoved"
+	RequestBodyFieldTypeChanged ChangeKind = "RequestBodyFieldTypeChanged"
+	RequestBodyRequiredPromoted ChangeKind = "RequestBodyRequiredPromoted"
+	RequestBodyEnumNarrowed    ChangeKind = "RequestBodyEnumNarrowed"
 )
 
 type Change struct {
@@ -29,6 +37,7 @@ type Change struct {
 	ParamRequired bool
 
 	FieldName           string
+	FieldRequired       bool
 	OldType             string
 	NewType             string
 	OldEnum             []string
@@ -52,6 +61,7 @@ func Diff(oldAPI model.API, newAPI model.API) []Change {
 
 		changes = append(changes, diffParams(key, oldEp, newEp)...)
 		changes = append(changes, diffResponse200(key, oldEp, newEp)...)
+		changes = append(changes, diffRequestBody(key, oldEp, newEp)...)
 	}
 
 	for key := range newAPI.Endpoints {
@@ -78,13 +88,35 @@ func diffParams(endpoint string, oldEp model.Endpoint, newEp model.Endpoint) []C
 	var out []Change
 
 	for k, oldP := range oldEp.Params {
-		if _, ok := newEp.Params[k]; !ok {
+		newP, ok := newEp.Params[k]
+		if !ok {
 			out = append(out, Change{
 				Kind:      ParamRemoved,
 				Endpoint:  endpoint,
 				ParamIn:   oldP.In,
 				ParamName: oldP.Name,
 				Detail:    "parameter removed",
+			})
+			continue
+		}
+		if oldP.Type != "" && newP.Type != "" && oldP.Type != newP.Type {
+			out = append(out, Change{
+				Kind:      ParamTypeChanged,
+				Endpoint:  endpoint,
+				ParamIn:   oldP.In,
+				ParamName: oldP.Name,
+				OldType:   oldP.Type,
+				NewType:   newP.Type,
+			})
+		}
+		if len(oldP.Enum) > 0 && enumNarrowed(oldP.Enum, newP.Enum) {
+			out = append(out, Change{
+				Kind:      ParamEnumNarrowed,
+				Endpoint:  endpoint,
+				ParamIn:   oldP.In,
+				ParamName: oldP.Name,
+				OldEnum:   oldP.Enum,
+				NewEnum:   newP.Enum,
 			})
 		}
 	}
@@ -98,6 +130,65 @@ func diffParams(endpoint string, oldEp model.Endpoint, newEp model.Endpoint) []C
 				ParamName:     newP.Name,
 				ParamRequired: newP.Required,
 				Detail:        "parameter added",
+			})
+		}
+	}
+
+	return out
+}
+
+func diffRequestBody(endpoint string, oldEp model.Endpoint, newEp model.Endpoint) []Change {
+	var out []Change
+
+	if !oldEp.HasRequestBody || !newEp.HasRequestBody {
+		return out
+	}
+
+	for name := range oldEp.RequestBody.Fields {
+		if _, ok := newEp.RequestBody.Fields[name]; !ok {
+			out = append(out, Change{
+				Kind:                RequestBodyFieldRemoved,
+				Endpoint:            endpoint,
+				FieldName:           name,
+				OldFieldWasRequired: oldEp.RequestBody.Required[name],
+			})
+		}
+	}
+
+	for name, newF := range newEp.RequestBody.Fields {
+		oldF, existed := oldEp.RequestBody.Fields[name]
+		if !existed {
+			out = append(out, Change{
+				Kind:          RequestBodyFieldAdded,
+				Endpoint:      endpoint,
+				FieldName:     name,
+				FieldRequired: newEp.RequestBody.Required[name],
+			})
+			continue
+		}
+		if !oldEp.RequestBody.Required[name] && newEp.RequestBody.Required[name] {
+			out = append(out, Change{
+				Kind:      RequestBodyRequiredPromoted,
+				Endpoint:  endpoint,
+				FieldName: name,
+			})
+		}
+		if oldF.Type != "" && newF.Type != "" && oldF.Type != newF.Type {
+			out = append(out, Change{
+				Kind:      RequestBodyFieldTypeChanged,
+				Endpoint:  endpoint,
+				FieldName: name,
+				OldType:   oldF.Type,
+				NewType:   newF.Type,
+			})
+		}
+		if len(oldF.Enum) > 0 && enumNarrowed(oldF.Enum, newF.Enum) {
+			out = append(out, Change{
+				Kind:      RequestBodyEnumNarrowed,
+				Endpoint:  endpoint,
+				FieldName: name,
+				OldEnum:   oldF.Enum,
+				NewEnum:   newF.Enum,
 			})
 		}
 	}

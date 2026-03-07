@@ -12,6 +12,11 @@ paths:
           required: true
           schema:
             type: string
+        - in: header
+          name: X-Tenant-ID
+          required: true
+          schema:
+            type: string
       responses:
         "200":
           description: ok
@@ -19,6 +24,24 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/User"
+
+  /users:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+                display_name:
+                  type: string
+      responses:
+        "201":
+          description: created
 
   /health:
     get:
