@@ -41,6 +41,7 @@ func TestDiff_FixturesHaveBreakingChanges(t *testing.T) {
 	assertHasBreakingSubstring(t, results, "response field 'id' is no longer required")
 	assertHasBreakingSubstring(t, results, "removed header param 'X-Tenant-ID'")
 	assertHasBreakingSubstring(t, results, "added required request body field 'role'")
+	assertHasBreakingSubstring(t, results, "response field 'address.street'")
 }
 
 func TestDiff_NonbreakingChangesAreNotBreaking(t *testing.T) {

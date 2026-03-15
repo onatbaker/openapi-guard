@@ -69,3 +69,11 @@ components:
         status:
           type: string
           enum: [ACTIVE, LOCKED]
+        address:
+          type: object
+          required: [street]
+          properties:
+            street:
+              type: string
+            city:
+              type: string

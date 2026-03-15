@@ -291,10 +291,15 @@ func extractObjectSchema(schema map[string]any, resolver *spec.Resolver) (model.
 		}
 
 		t, enum := extractTypeAndEnum(pmResolved)
-		out.Fields[name] = model.Field{
-			Type: t,
-			Enum: enum,
+		f := model.Field{Type: t, Enum: enum}
+		if t == "object" {
+			child, err := extractObjectSchema(pmResolved, resolver)
+			if err != nil {
+				return model.SchemaObject{}, err
+			}
+			f.Children = &child
 		}
+		out.Fields[name] = f
 	}
 
 	return out, nil
