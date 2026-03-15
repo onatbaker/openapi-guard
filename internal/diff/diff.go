@@ -20,11 +20,11 @@ const (
 	EnumNarrowed         ChangeKind = "EnumNarrowed"
 	EndpointAdded        ChangeKind = "EndpointAdded"
 
-	RequestBodyFieldAdded      ChangeKind = "RequestBodyFieldAdded"
-	RequestBodyFieldRemoved    ChangeKind = "RequestBodyFieldRemoved"
+	RequestBodyFieldAdded       ChangeKind = "RequestBodyFieldAdded"
+	RequestBodyFieldRemoved     ChangeKind = "RequestBodyFieldRemoved"
 	RequestBodyFieldTypeChanged ChangeKind = "RequestBodyFieldTypeChanged"
 	RequestBodyRequiredPromoted ChangeKind = "RequestBodyRequiredPromoted"
-	RequestBodyEnumNarrowed    ChangeKind = "RequestBodyEnumNarrowed"
+	RequestBodyEnumNarrowed     ChangeKind = "RequestBodyEnumNarrowed"
 )
 
 type Change struct {
@@ -137,56 +137,56 @@ func diffParams(endpoint string, oldEp model.Endpoint, newEp model.Endpoint) []C
 	return out
 }
 
-func diffRequestBody(endpoint string, oldEp model.Endpoint, newEp model.Endpoint) []Change {
+func diffResponse200(endpoint string, oldEp model.Endpoint, newEp model.Endpoint) []Change {
+	if !oldEp.HasResponse200 || !newEp.HasResponse200 {
+		return nil
+	}
+	return diffResponseSchema(endpoint, "", oldEp.Response200, newEp.Response200)
+}
+
+func diffResponseSchema(endpoint, prefix string, oldS, newS model.SchemaObject) []Change {
 	var out []Change
 
-	if !oldEp.HasRequestBody || !newEp.HasRequestBody {
-		return out
-	}
-
-	for name := range oldEp.RequestBody.Fields {
-		if _, ok := newEp.RequestBody.Fields[name]; !ok {
-			out = append(out, Change{
-				Kind:                RequestBodyFieldRemoved,
-				Endpoint:            endpoint,
-				FieldName:           name,
-				OldFieldWasRequired: oldEp.RequestBody.Required[name],
-			})
+	for name, oldF := range oldS.Fields {
+		path := name
+		if prefix != "" {
+			path = prefix + "." + name
 		}
-	}
-
-	for name, newF := range newEp.RequestBody.Fields {
-		oldF, existed := oldEp.RequestBody.Fields[name]
-		if !existed {
+		newF, ok := newS.Fields[name]
+		if !ok {
 			out = append(out, Change{
-				Kind:          RequestBodyFieldAdded,
-				Endpoint:      endpoint,
-				FieldName:     name,
-				FieldRequired: newEp.RequestBody.Required[name],
+				Kind:                FieldRemoved,
+				Endpoint:            endpoint,
+				FieldName:           path,
+				OldFieldWasRequired: oldS.Required[name],
 			})
 			continue
 		}
-		if !oldEp.RequestBody.Required[name] && newEp.RequestBody.Required[name] {
+		if oldS.Required[name] && !newS.Required[name] {
 			out = append(out, Change{
-				Kind:      RequestBodyRequiredPromoted,
+				Kind:      RequiredFieldDemoted,
 				Endpoint:  endpoint,
-				FieldName: name,
+				FieldName: path,
 			})
+		}
+		if oldF.Children != nil && newF.Children != nil {
+			out = append(out, diffResponseSchema(endpoint, path, *oldF.Children, *newF.Children)...)
+			continue
 		}
 		if oldF.Type != "" && newF.Type != "" && oldF.Type != newF.Type {
 			out = append(out, Change{
-				Kind:      RequestBodyFieldTypeChanged,
+				Kind:      FieldTypeChanged,
 				Endpoint:  endpoint,
-				FieldName: name,
+				FieldName: path,
 				OldType:   oldF.Type,
 				NewType:   newF.Type,
 			})
 		}
 		if len(oldF.Enum) > 0 && enumNarrowed(oldF.Enum, newF.Enum) {
 			out = append(out, Change{
-				Kind:      RequestBodyEnumNarrowed,
+				Kind:      EnumNarrowed,
 				Endpoint:  endpoint,
-				FieldName: name,
+				FieldName: path,
 				OldEnum:   oldF.Enum,
 				NewEnum:   newF.Enum,
 			})
@@ -196,64 +196,74 @@ func diffRequestBody(endpoint string, oldEp model.Endpoint, newEp model.Endpoint
 	return out
 }
 
-func diffResponse200(endpoint string, oldEp model.Endpoint, newEp model.Endpoint) []Change {
+func diffRequestBody(endpoint string, oldEp model.Endpoint, newEp model.Endpoint) []Change {
+	if !oldEp.HasRequestBody || !newEp.HasRequestBody {
+		return nil
+	}
+	return diffRequestBodySchema(endpoint, "", oldEp.RequestBody, newEp.RequestBody)
+}
+
+func diffRequestBodySchema(endpoint, prefix string, oldS, newS model.SchemaObject) []Change {
 	var out []Change
 
-	if !oldEp.HasResponse200 || !newEp.HasResponse200 {
-		return out
-	}
-
-	for name := range oldEp.Response200.Fields {
-		_, stillExists := newEp.Response200.Fields[name]
-		if !stillExists {
+	for name := range oldS.Fields {
+		path := name
+		if prefix != "" {
+			path = prefix + "." + name
+		}
+		if _, ok := newS.Fields[name]; !ok {
 			out = append(out, Change{
-				Kind:                FieldRemoved,
+				Kind:                RequestBodyFieldRemoved,
 				Endpoint:            endpoint,
-				FieldName:           name,
-				OldFieldWasRequired: oldEp.Response200.Required[name],
-				Detail:              "response field removed",
-			})
-			continue
-		}
-		if oldEp.Response200.Required[name] && !newEp.Response200.Required[name] {
-			out = append(out, Change{
-				Kind:      RequiredFieldDemoted,
-				Endpoint:  endpoint,
-				FieldName: name,
-				Detail:    "required response field became optional",
+				FieldName:           path,
+				OldFieldWasRequired: oldS.Required[name],
 			})
 		}
 	}
 
-	for name, oldF := range oldEp.Response200.Fields {
-		newF, ok := newEp.Response200.Fields[name]
-		if !ok {
+	for name, newF := range newS.Fields {
+		path := name
+		if prefix != "" {
+			path = prefix + "." + name
+		}
+		oldF, existed := oldS.Fields[name]
+		if !existed {
+			out = append(out, Change{
+				Kind:          RequestBodyFieldAdded,
+				Endpoint:      endpoint,
+				FieldName:     path,
+				FieldRequired: newS.Required[name],
+			})
 			continue
 		}
-
+		if !oldS.Required[name] && newS.Required[name] {
+			out = append(out, Change{
+				Kind:      RequestBodyRequiredPromoted,
+				Endpoint:  endpoint,
+				FieldName: path,
+			})
+		}
+		if oldF.Children != nil && newF.Children != nil {
+			out = append(out, diffRequestBodySchema(endpoint, path, *oldF.Children, *newF.Children)...)
+			continue
+		}
 		if oldF.Type != "" && newF.Type != "" && oldF.Type != newF.Type {
 			out = append(out, Change{
-				Kind:      FieldTypeChanged,
+				Kind:      RequestBodyFieldTypeChanged,
 				Endpoint:  endpoint,
-				FieldName: name,
+				FieldName: path,
 				OldType:   oldF.Type,
 				NewType:   newF.Type,
-				Detail:    "response field type changed",
 			})
-			continue
 		}
-
-		if len(oldF.Enum) > 0 {
-			if enumNarrowed(oldF.Enum, newF.Enum) {
-				out = append(out, Change{
-					Kind:      EnumNarrowed,
-					Endpoint:  endpoint,
-					FieldName: name,
-					OldEnum:   oldF.Enum,
-					NewEnum:   newF.Enum,
-					Detail:    "response enum narrowed",
-				})
-			}
+		if len(oldF.Enum) > 0 && enumNarrowed(oldF.Enum, newF.Enum) {
+			out = append(out, Change{
+				Kind:      RequestBodyEnumNarrowed,
+				Endpoint:  endpoint,
+				FieldName: path,
+				OldEnum:   oldF.Enum,
+				NewEnum:   newF.Enum,
+			})
 		}
 	}
 

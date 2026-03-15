@@ -34,6 +34,7 @@ type SchemaObject struct {
 }
 
 type Field struct {
-	Type string
-	Enum []string
+	Type     string
+	Enum     []string
+	Children *SchemaObject
 }
