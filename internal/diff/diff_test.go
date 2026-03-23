@@ -35,7 +35,7 @@ func TestDiffResponseSchema_NestedFieldRemoved(t *testing.T) {
 		Required: map[string]bool{},
 	}
 
-	changes := diffResponseSchema("GET /users/{id}", "", oldS, newS)
+	changes := diffResponseSchema("GET /users/{id}", "", "200", oldS, newS)
 
 	if len(changes) != 1 {
 		t.Fatalf("expected 1 change, got %d", len(changes))
@@ -77,7 +77,7 @@ func TestDiffResponseSchema_NestedFieldTypeChanged(t *testing.T) {
 		Required: map[string]bool{},
 	}
 
-	changes := diffResponseSchema("GET /users/{id}", "", oldS, newS)
+	changes := diffResponseSchema("GET /users/{id}", "", "200", oldS, newS)
 
 	if len(changes) != 1 {
 		t.Fatalf("expected 1 change, got %d", len(changes))
@@ -132,5 +132,39 @@ func TestDiffRequestBodySchema_NestedRequiredFieldAdded(t *testing.T) {
 	}
 	if !changes[0].FieldRequired {
 		t.Error("expected FieldRequired to be true")
+	}
+}
+
+func TestDiffResponses_404FieldRemoved(t *testing.T) {
+	oldEp := model.Endpoint{
+		Responses: map[string]model.SchemaObject{
+			"404": {
+				Fields:   map[string]model.Field{"message": {Type: "string"}, "code": {Type: "string"}},
+				Required: map[string]bool{},
+			},
+		},
+	}
+	newEp := model.Endpoint{
+		Responses: map[string]model.SchemaObject{
+			"404": {
+				Fields:   map[string]model.Field{"message": {Type: "string"}},
+				Required: map[string]bool{},
+			},
+		},
+	}
+
+	changes := diffResponses("GET /users/{id}", oldEp, newEp)
+
+	if len(changes) != 1 {
+		t.Fatalf("expected 1 change, got %d", len(changes))
+	}
+	if changes[0].Kind != FieldRemoved {
+		t.Errorf("expected FieldRemoved, got %s", changes[0].Kind)
+	}
+	if changes[0].ResponseCode != "404" {
+		t.Errorf("expected ResponseCode '404', got %q", changes[0].ResponseCode)
+	}
+	if changes[0].FieldName != "code" {
+		t.Errorf("expected FieldName 'code', got %q", changes[0].FieldName)
 	}
 }
