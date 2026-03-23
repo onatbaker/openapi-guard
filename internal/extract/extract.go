@@ -68,14 +68,11 @@ func Extract(doc spec.Document) (model.API, error) {
 				ep.Params[k] = p
 			}
 
-			schema, has200, err := extractResponse200JSON(op, resolver)
+			responses, err := extractResponses(op, resolver)
 			if err != nil {
 				return api, err
 			}
-			if has200 {
-				ep.Response200 = schema
-				ep.HasResponse200 = true
-			}
+			ep.Responses = responses
 
 			body, hasBody, err := extractRequestBody(op, resolver)
 			if err != nil {
@@ -149,61 +146,59 @@ func extractParameters(paramsAny any, resolver *spec.Resolver) map[model.ParamKe
 	return out
 }
 
-func extractResponse200JSON(op map[string]any, resolver *spec.Resolver) (model.SchemaObject, bool, error) {
+func extractResponses(op map[string]any, resolver *spec.Resolver) (map[string]model.SchemaObject, error) {
+	out := make(map[string]model.SchemaObject)
+
 	responsesAny, ok := op["responses"]
 	if !ok {
-		return model.SchemaObject{}, false, nil
+		return out, nil
 	}
 	responses, ok := responsesAny.(map[string]any)
 	if !ok {
-		return model.SchemaObject{}, false, nil
+		return out, nil
 	}
 
-	resp200Any, ok := responses["200"]
-	if !ok {
-		return model.SchemaObject{}, false, nil
-	}
-	resp200, ok := resp200Any.(map[string]any)
-	if !ok {
-		return model.SchemaObject{}, false, nil
+	for code, respAny := range responses {
+		resp, ok := respAny.(map[string]any)
+		if !ok {
+			continue
+		}
+		contentAny, ok := resp["content"]
+		if !ok {
+			continue
+		}
+		content, ok := contentAny.(map[string]any)
+		if !ok {
+			continue
+		}
+		appAny, ok := content["application/json"]
+		if !ok {
+			continue
+		}
+		app, ok := appAny.(map[string]any)
+		if !ok {
+			continue
+		}
+		schemaAny, ok := app["schema"]
+		if !ok {
+			continue
+		}
+		schema, ok := schemaAny.(map[string]any)
+		if !ok {
+			continue
+		}
+		resolved, err := resolver.ResolveSchema(schema)
+		if err != nil {
+			return nil, err
+		}
+		obj, err := extractObjectSchema(resolved, resolver)
+		if err != nil {
+			return nil, err
+		}
+		out[code] = obj
 	}
 
-	contentAny, ok := resp200["content"]
-	if !ok {
-		return model.SchemaObject{}, false, nil
-	}
-	content, ok := contentAny.(map[string]any)
-	if !ok {
-		return model.SchemaObject{}, false, nil
-	}
-
-	appAny, ok := content["application/json"]
-	if !ok {
-		return model.SchemaObject{}, false, nil
-	}
-	app, ok := appAny.(map[string]any)
-	if !ok {
-		return model.SchemaObject{}, false, nil
-	}
-
-	schemaAny, ok := app["schema"]
-	if !ok {
-		return model.SchemaObject{}, false, nil
-	}
-	schema, ok := schemaAny.(map[string]any)
-	if !ok {
-		return model.SchemaObject{}, false, nil
-	}
-	resolved, err := resolver.ResolveSchema(schema)
-	if err != nil {
-		return model.SchemaObject{}, true, err
-	}
-
-	obj, err := extractObjectSchema(resolved, resolver)
-	if err != nil {
-		return model.SchemaObject{}, true, err
-	}
-	return obj, true, nil
+	return out, nil
 }
 
 func extractRequestBody(op map[string]any, resolver *spec.Resolver) (model.SchemaObject, bool, error) {

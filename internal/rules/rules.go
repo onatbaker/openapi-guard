@@ -1,6 +1,10 @@
 package rules
 
-import "github.com/onatbaker/openapi-guard/internal/diff"
+import (
+	"strings"
+
+	"github.com/onatbaker/openapi-guard/internal/diff"
+)
 
 type Severity string
 
@@ -64,39 +68,47 @@ func Classify(changes []diff.Change) Results {
 			})
 
 		case diff.FieldRemoved:
-			if c.OldFieldWasRequired {
-				out.Items = append(out.Items, Result{
-					Severity: Breaking,
-					Change:   c,
-					Message:  c.Endpoint + " removed required response field '" + c.FieldName + "'",
-				})
-			} else {
-				out.Items = append(out.Items, Result{
-					Severity: Info,
-					Change:   c,
-					Message:  c.Endpoint + " removed optional response field '" + c.FieldName + "'",
-				})
+			sev := Breaking
+			if !strings.HasPrefix(c.ResponseCode, "2") {
+				sev = Warning
 			}
+			out.Items = append(out.Items, Result{
+				Severity: sev,
+				Change:   c,
+				Message:  c.Endpoint + " removed " + c.ResponseCode + " response field '" + c.FieldName + "'",
+			})
 
 		case diff.RequiredFieldDemoted:
+			sev := Breaking
+			if !strings.HasPrefix(c.ResponseCode, "2") {
+				sev = Warning
+			}
 			out.Items = append(out.Items, Result{
-				Severity: Breaking,
+				Severity: sev,
 				Change:   c,
-				Message:  c.Endpoint + " response field '" + c.FieldName + "' is no longer required",
+				Message:  c.Endpoint + " " + c.ResponseCode + " response field '" + c.FieldName + "' is no longer required",
 			})
 
 		case diff.FieldTypeChanged:
+			sev := Breaking
+			if !strings.HasPrefix(c.ResponseCode, "2") {
+				sev = Warning
+			}
 			out.Items = append(out.Items, Result{
-				Severity: Breaking,
+				Severity: sev,
 				Change:   c,
-				Message:  c.Endpoint + " changed response field '" + c.FieldName + "' type " + c.OldType + " -> " + c.NewType,
+				Message:  c.Endpoint + " changed " + c.ResponseCode + " response field '" + c.FieldName + "' type " + c.OldType + " -> " + c.NewType,
 			})
 
 		case diff.EnumNarrowed:
+			sev := Breaking
+			if !strings.HasPrefix(c.ResponseCode, "2") {
+				sev = Warning
+			}
 			out.Items = append(out.Items, Result{
-				Severity: Breaking,
+				Severity: sev,
 				Change:   c,
-				Message:  c.Endpoint + " narrowed enum for response field '" + c.FieldName + "'",
+				Message:  c.Endpoint + " narrowed enum for " + c.ResponseCode + " response field '" + c.FieldName + "'",
 			})
 
 		case diff.ParamTypeChanged:

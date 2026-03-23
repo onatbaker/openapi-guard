@@ -9,8 +9,7 @@ type Endpoint struct {
 	Path   string
 
 	Params         map[ParamKey]Param
-	Response200    SchemaObject
-	HasResponse200 bool
+	Responses      map[string]SchemaObject
 	RequestBody    SchemaObject
 	HasRequestBody bool
 }

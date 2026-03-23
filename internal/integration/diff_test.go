@@ -42,6 +42,7 @@ func TestDiff_FixturesHaveBreakingChanges(t *testing.T) {
 	assertHasBreakingSubstring(t, results, "removed header param 'X-Tenant-ID'")
 	assertHasBreakingSubstring(t, results, "added required request body field 'role'")
 	assertHasBreakingSubstring(t, results, "response field 'address.street'")
+	assertHasWarningSubstring(t, results, "404 response field 'code'")
 }
 
 func TestDiff_NonbreakingChangesAreNotBreaking(t *testing.T) {
@@ -75,6 +76,21 @@ func TestDiff_NonbreakingChangesAreNotBreaking(t *testing.T) {
 		}
 		t.Fatalf("expected no breaking changes between old and new_nonbreaking")
 	}
+}
+
+func assertHasWarningSubstring(t *testing.T, results rules.Results, substr string) {
+	t.Helper()
+
+	for _, it := range results.Items {
+		if it.Severity != rules.Warning {
+			continue
+		}
+		if strings.Contains(it.Message, substr) {
+			return
+		}
+	}
+
+	t.Fatalf("expected warning message containing %q", substr)
 }
 
 func assertHasBreakingSubstring(t *testing.T, results rules.Results, substr string) {

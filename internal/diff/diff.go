@@ -32,6 +32,8 @@ type Change struct {
 	Endpoint string
 	Detail   string
 
+	ResponseCode string
+
 	ParamIn       string
 	ParamName     string
 	ParamRequired bool
@@ -60,7 +62,7 @@ func Diff(oldAPI model.API, newAPI model.API) []Change {
 		}
 
 		changes = append(changes, diffParams(key, oldEp, newEp)...)
-		changes = append(changes, diffResponse200(key, oldEp, newEp)...)
+		changes = append(changes, diffResponses(key, oldEp, newEp)...)
 		changes = append(changes, diffRequestBody(key, oldEp, newEp)...)
 	}
 
@@ -137,14 +139,19 @@ func diffParams(endpoint string, oldEp model.Endpoint, newEp model.Endpoint) []C
 	return out
 }
 
-func diffResponse200(endpoint string, oldEp model.Endpoint, newEp model.Endpoint) []Change {
-	if !oldEp.HasResponse200 || !newEp.HasResponse200 {
-		return nil
+func diffResponses(endpoint string, oldEp model.Endpoint, newEp model.Endpoint) []Change {
+	var out []Change
+	for code, oldSchema := range oldEp.Responses {
+		newSchema, ok := newEp.Responses[code]
+		if !ok {
+			continue
+		}
+		out = append(out, diffResponseSchema(endpoint, "", code, oldSchema, newSchema)...)
 	}
-	return diffResponseSchema(endpoint, "", oldEp.Response200, newEp.Response200)
+	return out
 }
 
-func diffResponseSchema(endpoint, prefix string, oldS, newS model.SchemaObject) []Change {
+func diffResponseSchema(endpoint, prefix, responseCode string, oldS, newS model.SchemaObject) []Change {
 	var out []Change
 
 	for name, oldF := range oldS.Fields {
@@ -157,6 +164,7 @@ func diffResponseSchema(endpoint, prefix string, oldS, newS model.SchemaObject) 
 			out = append(out, Change{
 				Kind:                FieldRemoved,
 				Endpoint:            endpoint,
+				ResponseCode:        responseCode,
 				FieldName:           path,
 				OldFieldWasRequired: oldS.Required[name],
 			})
@@ -164,31 +172,34 @@ func diffResponseSchema(endpoint, prefix string, oldS, newS model.SchemaObject) 
 		}
 		if oldS.Required[name] && !newS.Required[name] {
 			out = append(out, Change{
-				Kind:      RequiredFieldDemoted,
-				Endpoint:  endpoint,
-				FieldName: path,
+				Kind:         RequiredFieldDemoted,
+				Endpoint:     endpoint,
+				ResponseCode: responseCode,
+				FieldName:    path,
 			})
 		}
 		if oldF.Children != nil && newF.Children != nil {
-			out = append(out, diffResponseSchema(endpoint, path, *oldF.Children, *newF.Children)...)
+			out = append(out, diffResponseSchema(endpoint, path, responseCode, *oldF.Children, *newF.Children)...)
 			continue
 		}
 		if oldF.Type != "" && newF.Type != "" && oldF.Type != newF.Type {
 			out = append(out, Change{
-				Kind:      FieldTypeChanged,
-				Endpoint:  endpoint,
-				FieldName: path,
-				OldType:   oldF.Type,
-				NewType:   newF.Type,
+				Kind:         FieldTypeChanged,
+				Endpoint:     endpoint,
+				ResponseCode: responseCode,
+				FieldName:    path,
+				OldType:      oldF.Type,
+				NewType:      newF.Type,
 			})
 		}
 		if len(oldF.Enum) > 0 && enumNarrowed(oldF.Enum, newF.Enum) {
 			out = append(out, Change{
-				Kind:      EnumNarrowed,
-				Endpoint:  endpoint,
-				FieldName: path,
-				OldEnum:   oldF.Enum,
-				NewEnum:   newF.Enum,
+				Kind:         EnumNarrowed,
+				Endpoint:     endpoint,
+				ResponseCode: responseCode,
+				FieldName:    path,
+				OldEnum:      oldF.Enum,
+				NewEnum:      newF.Enum,
 			})
 		}
 	}
