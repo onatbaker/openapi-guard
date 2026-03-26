@@ -18,6 +18,7 @@ const (
 	FieldTypeChanged     ChangeKind = "FieldTypeChanged"
 	RequiredFieldDemoted ChangeKind = "RequiredFieldDemoted"
 	EnumNarrowed         ChangeKind = "EnumNarrowed"
+	ResponseCodeRemoved  ChangeKind = "ResponseCodeRemoved"
 	EndpointAdded        ChangeKind = "EndpointAdded"
 
 	RequestBodyFieldAdded       ChangeKind = "RequestBodyFieldAdded"
@@ -144,6 +145,11 @@ func diffResponses(endpoint string, oldEp model.Endpoint, newEp model.Endpoint) 
 	for code, oldSchema := range oldEp.Responses {
 		newSchema, ok := newEp.Responses[code]
 		if !ok {
+			out = append(out, Change{
+				Kind:         ResponseCodeRemoved,
+				Endpoint:     endpoint,
+				ResponseCode: code,
+			})
 			continue
 		}
 		out = append(out, diffResponseSchema(endpoint, "", code, oldSchema, newSchema)...)

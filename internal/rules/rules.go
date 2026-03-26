@@ -67,7 +67,18 @@ func Classify(changes []diff.Change) Results {
 				Message:  c.Endpoint + " removed " + c.ParamIn + " param '" + c.ParamName + "'",
 			})
 
-		case diff.FieldRemoved:
+		case diff.ResponseCodeRemoved:
+		sev := Breaking
+		if !strings.HasPrefix(c.ResponseCode, "2") {
+			sev = Warning
+		}
+		out.Items = append(out.Items, Result{
+			Severity: sev,
+			Change:   c,
+			Message:  c.Endpoint + " removed " + c.ResponseCode + " response",
+		})
+
+	case diff.FieldRemoved:
 			sev := Breaking
 			if !strings.HasPrefix(c.ResponseCode, "2") {
 				sev = Warning

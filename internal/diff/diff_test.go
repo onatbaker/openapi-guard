@@ -135,6 +135,32 @@ func TestDiffRequestBodySchema_NestedRequiredFieldAdded(t *testing.T) {
 	}
 }
 
+func TestDiffResponses_CodeRemoved(t *testing.T) {
+	oldEp := model.Endpoint{
+		Responses: map[string]model.SchemaObject{
+			"200": {Fields: map[string]model.Field{"id": {Type: "string"}}, Required: map[string]bool{}},
+			"422": {Fields: map[string]model.Field{"message": {Type: "string"}}, Required: map[string]bool{}},
+		},
+	}
+	newEp := model.Endpoint{
+		Responses: map[string]model.SchemaObject{
+			"200": {Fields: map[string]model.Field{"id": {Type: "string"}}, Required: map[string]bool{}},
+		},
+	}
+
+	changes := diffResponses("POST /users", oldEp, newEp)
+
+	if len(changes) != 1 {
+		t.Fatalf("expected 1 change, got %d", len(changes))
+	}
+	if changes[0].Kind != ResponseCodeRemoved {
+		t.Errorf("expected ResponseCodeRemoved, got %s", changes[0].Kind)
+	}
+	if changes[0].ResponseCode != "422" {
+		t.Errorf("expected ResponseCode '422', got %q", changes[0].ResponseCode)
+	}
+}
+
 func TestDiffResponses_404FieldRemoved(t *testing.T) {
 	oldEp := model.Endpoint{
 		Responses: map[string]model.SchemaObject{
