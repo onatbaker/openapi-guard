@@ -43,6 +43,7 @@ func TestDiff_FixturesHaveBreakingChanges(t *testing.T) {
 	assertHasBreakingSubstring(t, results, "added required request body field 'role'")
 	assertHasBreakingSubstring(t, results, "response field 'address.street'")
 	assertHasWarningSubstring(t, results, "404 response field 'code'")
+	assertHasWarningSubstring(t, results, "removed 422 response")
 }
 
 func TestDiff_NonbreakingChangesAreNotBreaking(t *testing.T) {

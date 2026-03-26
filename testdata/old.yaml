@@ -35,6 +35,15 @@ paths:
                     type: string
                   code:
                     type: string
+        "422":
+          description: unprocessable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
 
   /users:
     post:
