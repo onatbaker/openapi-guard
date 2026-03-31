@@ -1,0 +1,91 @@
+openapi: 3.0.3
+info:
+  title: Demo API
+  version: 1.0.0
+
+paths:
+  /api/users/{id}/:
+    get:
+      operationId: users_retrieve
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "404":
+          description: Not found
+
+  /api/users/:
+    post:
+      operationId: users_create
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserRequest"
+      responses:
+        "201":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+components:
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        username:
+          type: string
+          maxLength: 150
+        email:
+          type: string
+          format: email
+        bio:
+          type: string
+          nullable: true
+        date_joined:
+          type: string
+          format: date-time
+          readOnly: true
+        status:
+          type: string
+          enum: [active, inactive, banned]
+      required:
+        - id
+        - username
+        - email
+        - date_joined
+
+    UserRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          maxLength: 150
+        email:
+          type: string
+          format: email
+        bio:
+          type: string
+          nullable: true
+        password:
+          type: string
+      required:
+        - username
+        - email
+        - password

@@ -256,6 +256,19 @@ func extractObjectSchema(schema map[string]any, resolver *spec.Resolver) (model.
 		Required: make(map[string]bool),
 	}
 
+	if anyOf, ok := schema["anyOf"].([]any); ok {
+		for _, v := range anyOf {
+			m, ok := v.(map[string]any)
+			if !ok {
+				continue
+			}
+			if t, _ := m["type"].(string); t == "object" {
+				schema = m
+				break
+			}
+		}
+	}
+
 	typ, _ := schema["type"].(string)
 	if typ != "object" {
 		return out, nil
@@ -301,6 +314,18 @@ func extractObjectSchema(schema map[string]any, resolver *spec.Resolver) (model.
 }
 
 func extractTypeAndEnum(schema map[string]any) (string, []string) {
+	if anyOf, ok := schema["anyOf"].([]any); ok {
+		for _, v := range anyOf {
+			m, ok := v.(map[string]any)
+			if !ok {
+				continue
+			}
+			if t, _ := m["type"].(string); t != "" && t != "null" {
+				return extractTypeAndEnum(m)
+			}
+		}
+	}
+
 	typ, _ := schema["type"].(string)
 
 	enumAny, ok := schema["enum"].([]any)
