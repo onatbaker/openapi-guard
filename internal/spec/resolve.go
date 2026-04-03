@@ -6,12 +6,12 @@ import (
 )
 
 type Resolver struct {
-	schemas map[string]map[string]any
+	sections map[string]map[string]map[string]any
 }
 
 func NewResolver(doc Document) *Resolver {
 	r := &Resolver{
-		schemas: make(map[string]map[string]any),
+		sections: make(map[string]map[string]map[string]any),
 	}
 
 	components, _ := doc["components"].(map[string]any)
@@ -19,17 +19,19 @@ func NewResolver(doc Document) *Resolver {
 		return r
 	}
 
-	schemasAny, _ := components["schemas"].(map[string]any)
-	if schemasAny == nil {
-		return r
-	}
-
-	for name, node := range schemasAny {
-		m, ok := node.(map[string]any)
+	for section, sectionAny := range components {
+		sectionMap, ok := sectionAny.(map[string]any)
 		if !ok {
 			continue
 		}
-		r.schemas[name] = m
+		r.sections[section] = make(map[string]map[string]any)
+		for name, node := range sectionMap {
+			m, ok := node.(map[string]any)
+			if !ok {
+				continue
+			}
+			r.sections[section][name] = m
+		}
 	}
 
 	return r
@@ -56,12 +58,35 @@ func (r *Resolver) resolveSchema(schema map[string]any, visited map[string]bool)
 	}
 	visited[name] = true
 
-	target, ok := r.schemas[name]
+	target, ok := r.sections["schemas"][name]
 	if !ok {
 		return nil, fmt.Errorf("unresolved $ref %q (schema %q not found)", ref, name)
 	}
 
 	return r.resolveSchema(target, visited)
+}
+
+// ResolveComponentObject resolves any #/components/<section>/<name> $ref, returning
+// the raw object. Used for parameter, response, and requestBody $refs.
+func (r *Resolver) ResolveComponentObject(ref string) (map[string]any, error) {
+	trimmed := strings.TrimPrefix(ref, "#/components/")
+	if trimmed == ref {
+		return nil, fmt.Errorf("unsupported $ref %q", ref)
+	}
+	parts := strings.SplitN(trimmed, "/", 2)
+	if len(parts) != 2 || parts[1] == "" {
+		return nil, fmt.Errorf("malformed $ref %q", ref)
+	}
+	section, name := parts[0], parts[1]
+	sectionMap, ok := r.sections[section]
+	if !ok {
+		return nil, fmt.Errorf("unresolved $ref %q (section %q not found in components)", ref, section)
+	}
+	obj, ok := sectionMap[name]
+	if !ok {
+		return nil, fmt.Errorf("unresolved $ref %q (%q not found in components/%s)", ref, name, section)
+	}
+	return obj, nil
 }
 
 func parseLocalSchemaRef(ref string) (string, bool) {
