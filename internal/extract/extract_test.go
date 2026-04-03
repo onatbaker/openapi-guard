@@ -117,6 +117,110 @@ func TestExtractObjectSchema_NestedObject(t *testing.T) {
 	}
 }
 
+func TestExtractParameters_Ref(t *testing.T) {
+	doc := spec.Document{
+		"components": map[string]any{
+			"parameters": map[string]any{
+				"UserId": map[string]any{
+					"in":       "path",
+					"name":     "id",
+					"required": true,
+					"schema":   map[string]any{"type": "integer"},
+				},
+			},
+		},
+	}
+	params := []any{
+		map[string]any{"$ref": "#/components/parameters/UserId"},
+	}
+
+	out := extractParameters(params, spec.NewResolver(doc))
+	p, ok := out[struct{ In, Name string }{"path", "id"}]
+	if !ok {
+		t.Fatal("expected parameter 'id' in path to be extracted")
+	}
+	if !p.Required {
+		t.Error("expected parameter to be required")
+	}
+}
+
+func TestExtractResponses_Ref(t *testing.T) {
+	doc := spec.Document{
+		"components": map[string]any{
+			"responses": map[string]any{
+				"NotFound": map[string]any{
+					"content": map[string]any{
+						"application/json": map[string]any{
+							"schema": map[string]any{
+								"type": "object",
+								"properties": map[string]any{
+									"message": map[string]any{"type": "string"},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	op := map[string]any{
+		"responses": map[string]any{
+			"404": map[string]any{"$ref": "#/components/responses/NotFound"},
+		},
+	}
+
+	out, err := extractResponses(op, spec.NewResolver(doc))
+	if err != nil {
+		t.Fatal(err)
+	}
+	schema, ok := out["404"]
+	if !ok {
+		t.Fatal("expected 404 response to be extracted")
+	}
+	if schema.Fields["message"].Type != "string" {
+		t.Errorf("expected message type 'string', got %q", schema.Fields["message"].Type)
+	}
+}
+
+func TestExtractRequestBody_Ref(t *testing.T) {
+	doc := spec.Document{
+		"components": map[string]any{
+			"requestBodies": map[string]any{
+				"CreateUser": map[string]any{
+					"content": map[string]any{
+						"application/json": map[string]any{
+							"schema": map[string]any{
+								"type": "object",
+								"properties": map[string]any{
+									"username": map[string]any{"type": "string"},
+								},
+								"required": []any{"username"},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	op := map[string]any{
+		"requestBody": map[string]any{"$ref": "#/components/requestBodies/CreateUser"},
+	}
+
+	body, hasBody, err := extractRequestBody(op, spec.NewResolver(doc))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !hasBody {
+		t.Fatal("expected request body to be extracted")
+	}
+	if body.Fields["username"].Type != "string" {
+		t.Errorf("expected username type 'string', got %q", body.Fields["username"].Type)
+	}
+	if !body.Required["username"] {
+		t.Error("expected username to be required")
+	}
+}
+
 func TestExtractTypeAndEnum_Enum(t *testing.T) {
 	schema := map[string]any{
 		"type": "string",

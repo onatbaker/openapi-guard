@@ -109,6 +109,14 @@ func extractParameters(paramsAny any, resolver *spec.Resolver) map[model.ParamKe
 			continue
 		}
 
+		if ref, ok := m["$ref"].(string); ok {
+			resolved, err := resolver.ResolveComponentObject(ref)
+			if err != nil {
+				continue
+			}
+			m = resolved
+		}
+
 		inStr, _ := m["in"].(string)
 		name, _ := m["name"].(string)
 
@@ -163,6 +171,15 @@ func extractResponses(op map[string]any, resolver *spec.Resolver) (map[string]mo
 		if !ok {
 			continue
 		}
+
+		if ref, ok := resp["$ref"].(string); ok {
+			resolved, err := resolver.ResolveComponentObject(ref)
+			if err != nil {
+				continue
+			}
+			resp = resolved
+		}
+
 		contentAny, ok := resp["content"]
 		if !ok {
 			continue
@@ -209,6 +226,14 @@ func extractRequestBody(op map[string]any, resolver *spec.Resolver) (model.Schem
 	rb, ok := rbAny.(map[string]any)
 	if !ok {
 		return model.SchemaObject{}, false, nil
+	}
+
+	if ref, ok := rb["$ref"].(string); ok {
+		resolved, err := resolver.ResolveComponentObject(ref)
+		if err != nil {
+			return model.SchemaObject{}, false, nil
+		}
+		rb = resolved
 	}
 
 	contentAny, ok := rb["content"]
