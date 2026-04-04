@@ -1,0 +1,47 @@
+name: openapi-guard
+description: Detect breaking changes between two OpenAPI specs
+author: onatbaker
+
+inputs:
+  old-spec:
+    description: Path to the old OpenAPI spec (relative to repo root)
+    required: true
+  new-spec:
+    description: Path to the new OpenAPI spec (relative to repo root)
+    required: true
+  format:
+    description: Output format — text or json
+    required: false
+    default: text
+  version:
+    description: openapi-guard release version to use (e.g. v0.1.0)
+    required: false
+    default: latest
+
+runs:
+  using: composite
+  steps:
+    - name: Download openapi-guard
+      shell: bash
+      run: |
+        VERSION="${{ inputs.version }}"
+        if [ "$VERSION" = "latest" ]; then
+          VERSION=$(curl -fsSL https://api.github.com/repos/onatbaker/openapi-guard/releases/latest | grep '"tag_name"' | sed 's/.*"tag_name": "\(.*\)".*/\1/')
+        fi
+
+        OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+        ARCH=$(uname -m)
+        if [ "$ARCH" = "x86_64" ]; then ARCH="amd64"; fi
+        if [ "$ARCH" = "aarch64" ]; then ARCH="arm64"; fi
+
+        URL="https://github.com/onatbaker/openapi-guard/releases/download/${VERSION}/openapi-guard_${OS}_${ARCH}"
+        curl -fsSL "$URL" -o "${{ runner.temp }}/openapi-guard"
+        chmod +x "${{ runner.temp }}/openapi-guard"
+
+    - name: Run diff
+      shell: bash
+      run: |
+        "${{ runner.temp }}/openapi-guard" diff \
+          --old "${{ inputs.old-spec }}" \
+          --new "${{ inputs.new-spec }}" \
+          --format "${{ inputs.format }}"
