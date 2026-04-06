@@ -7,6 +7,7 @@ import (
 
 	"github.com/onatbaker/openapi-guard/internal/diff"
 	"github.com/onatbaker/openapi-guard/internal/extract"
+	"github.com/onatbaker/openapi-guard/internal/ignore"
 	"github.com/onatbaker/openapi-guard/internal/report"
 	"github.com/onatbaker/openapi-guard/internal/rules"
 	"github.com/onatbaker/openapi-guard/internal/spec"
@@ -38,6 +39,7 @@ func runDiff(args []string) int {
 	oldPath := fs.String("old", "", "path to old OpenAPI spec (yaml/json)")
 	newPath := fs.String("new", "", "path to new OpenAPI spec (yaml/json)")
 	format := fs.String("format", "text", "output format: text|json")
+	ignorePath := fs.String("ignore", "", "path to ignore config file (yaml)")
 
 	if err := fs.Parse(args); err != nil {
 		return 2
@@ -77,6 +79,15 @@ func runDiff(args []string) int {
 
 	changes := diff.Diff(oldAPI, newAPI)
 	results := rules.Classify(changes)
+
+	if *ignorePath != "" {
+		entries, err := ignore.LoadFile(*ignorePath)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "failed to load ignore file: %v\n", err)
+			return 2
+		}
+		results = ignore.Filter(results, entries)
+	}
 
 	if err := report.Print(os.Stdout, results, *format); err != nil {
 		fmt.Fprintf(os.Stderr, "failed to print report: %v\n", err)
