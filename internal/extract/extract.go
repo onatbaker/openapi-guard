@@ -294,6 +294,23 @@ func extractObjectSchema(schema map[string]any, resolver *spec.Resolver) (model.
 		}
 	}
 
+	if allOf, ok := schema["allOf"].([]any); ok {
+		for _, v := range allOf {
+			m, ok := v.(map[string]any)
+			if !ok {
+				continue
+			}
+			candidate, err := resolver.ResolveSchema(m)
+			if err != nil {
+				continue
+			}
+			if t, _ := candidate["type"].(string); t == "object" {
+				schema = candidate
+				break
+			}
+		}
+	}
+
 	typ, _ := schema["type"].(string)
 	if typ != "object" {
 		return out, nil
@@ -323,6 +340,23 @@ func extractObjectSchema(schema map[string]any, resolver *spec.Resolver) (model.
 			return model.SchemaObject{}, err
 		}
 
+		if allOf, ok := pmResolved["allOf"].([]any); ok {
+			for _, v := range allOf {
+				m, ok := v.(map[string]any)
+				if !ok {
+					continue
+				}
+				candidate, err := resolver.ResolveSchema(m)
+				if err != nil {
+					continue
+				}
+				if t, _ := candidate["type"].(string); t != "" && t != "null" {
+					pmResolved = candidate
+					break
+				}
+			}
+		}
+
 		t, enum := extractTypeAndEnum(pmResolved)
 		f := model.Field{Type: t, Enum: enum}
 		if t == "object" {
@@ -341,6 +375,18 @@ func extractObjectSchema(schema map[string]any, resolver *spec.Resolver) (model.
 func extractTypeAndEnum(schema map[string]any) (string, []string) {
 	if anyOf, ok := schema["anyOf"].([]any); ok {
 		for _, v := range anyOf {
+			m, ok := v.(map[string]any)
+			if !ok {
+				continue
+			}
+			if t, _ := m["type"].(string); t != "" && t != "null" {
+				return extractTypeAndEnum(m)
+			}
+		}
+	}
+
+	if allOf, ok := schema["allOf"].([]any); ok {
+		for _, v := range allOf {
 			m, ok := v.(map[string]any)
 			if !ok {
 				continue
