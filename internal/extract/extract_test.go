@@ -221,6 +221,84 @@ func TestExtractRequestBody_Ref(t *testing.T) {
 	}
 }
 
+func TestExtractObjectSchema_AllOfTopLevel(t *testing.T) {
+	doc := spec.Document{
+		"components": map[string]any{
+			"schemas": map[string]any{
+				"User": map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"id":   map[string]any{"type": "integer"},
+						"name": map[string]any{"type": "string"},
+					},
+					"required": []any{"id"},
+				},
+			},
+		},
+	}
+	schema := map[string]any{
+		"allOf": []any{
+			map[string]any{"$ref": "#/components/schemas/User"},
+		},
+	}
+
+	obj, err := extractObjectSchema(schema, spec.NewResolver(doc))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if obj.Fields["id"].Type != "integer" {
+		t.Errorf("expected id type 'integer', got %q", obj.Fields["id"].Type)
+	}
+	if !obj.Required["id"] {
+		t.Error("expected 'id' to be required")
+	}
+}
+
+func TestExtractObjectSchema_AllOfProperty(t *testing.T) {
+	doc := spec.Document{
+		"components": map[string]any{
+			"schemas": map[string]any{
+				"Address": map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"street": map[string]any{"type": "string"},
+						"city":   map[string]any{"type": "string"},
+					},
+					"required": []any{"street"},
+				},
+			},
+		},
+	}
+	schema := map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"address": map[string]any{
+				"allOf": []any{
+					map[string]any{"$ref": "#/components/schemas/Address"},
+				},
+			},
+		},
+	}
+
+	obj, err := extractObjectSchema(schema, spec.NewResolver(doc))
+	if err != nil {
+		t.Fatal(err)
+	}
+	addr := obj.Fields["address"]
+	if addr.Type != "object" {
+		t.Errorf("expected address type 'object', got %q", addr.Type)
+	}
+	if addr.Children == nil {
+		t.Fatal("expected address to have children")
+	}
+	if addr.Children.Fields["street"].Type != "string" {
+		t.Errorf("expected street type 'string', got %q", addr.Children.Fields["street"].Type)
+	}
+	if !addr.Children.Required["street"] {
+		t.Error("expected 'street' to be required")
+	}
+}
+
 func TestExtractTypeAndEnum_Enum(t *testing.T) {
 	schema := map[string]any{
 		"type": "string",
