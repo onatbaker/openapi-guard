@@ -18,11 +18,11 @@ var httpMethods = map[string]bool{
 	"options": true,
 }
 
-func Extract(doc spec.Document) (model.API, error) {
+func Extract(doc spec.Document, baseDir string) (model.API, error) {
 	api := model.API{
 		Endpoints: make(map[string]model.Endpoint),
 	}
-	resolver := spec.NewResolver(doc)
+	resolver := spec.NewResolver(doc, baseDir)
 
 	pathsAny, ok := doc["paths"]
 	if !ok {

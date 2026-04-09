@@ -20,11 +20,11 @@ func TestDiff_FixturesHaveBreakingChanges(t *testing.T) {
 		t.Fatalf("load new: %v", err)
 	}
 
-	oldAPI, err := extract.Extract(oldDoc)
+	oldAPI, err := extract.Extract(oldDoc, "")
 	if err != nil {
 		t.Fatalf("extract old: %v", err)
 	}
-	newAPI, err := extract.Extract(newDoc)
+	newAPI, err := extract.Extract(newDoc, "")
 	if err != nil {
 		t.Fatalf("extract new: %v", err)
 	}
@@ -56,11 +56,11 @@ func TestDiff_NonbreakingChangesAreNotBreaking(t *testing.T) {
 		t.Fatalf("load new_nonbreaking: %v", err)
 	}
 
-	oldAPI, err := extract.Extract(oldDoc)
+	oldAPI, err := extract.Extract(oldDoc, "")
 	if err != nil {
 		t.Fatalf("extract old: %v", err)
 	}
-	newAPI, err := extract.Extract(newDoc)
+	newAPI, err := extract.Extract(newDoc, "")
 	if err != nil {
 		t.Fatalf("extract new_nonbreaking: %v", err)
 	}
@@ -89,11 +89,11 @@ func TestDiff_FastAPIFixtures(t *testing.T) {
 		t.Fatalf("load fastapi_new: %v", err)
 	}
 
-	oldAPI, err := extract.Extract(oldDoc)
+	oldAPI, err := extract.Extract(oldDoc, "")
 	if err != nil {
 		t.Fatalf("extract fastapi_old: %v", err)
 	}
-	newAPI, err := extract.Extract(newDoc)
+	newAPI, err := extract.Extract(newDoc, "")
 	if err != nil {
 		t.Fatalf("extract fastapi_new: %v", err)
 	}
@@ -117,11 +117,11 @@ func TestDiff_DjangoFixtures(t *testing.T) {
 		t.Fatalf("load django_new: %v", err)
 	}
 
-	oldAPI, err := extract.Extract(oldDoc)
+	oldAPI, err := extract.Extract(oldDoc, "")
 	if err != nil {
 		t.Fatalf("extract django_old: %v", err)
 	}
-	newAPI, err := extract.Extract(newDoc)
+	newAPI, err := extract.Extract(newDoc, "")
 	if err != nil {
 		t.Fatalf("extract django_new: %v", err)
 	}
@@ -145,11 +145,11 @@ func TestDiff_ASPNETFixtures(t *testing.T) {
 		t.Fatalf("load aspnet_new: %v", err)
 	}
 
-	oldAPI, err := extract.Extract(oldDoc)
+	oldAPI, err := extract.Extract(oldDoc, "")
 	if err != nil {
 		t.Fatalf("extract aspnet_old: %v", err)
 	}
-	newAPI, err := extract.Extract(newDoc)
+	newAPI, err := extract.Extract(newDoc, "")
 	if err != nil {
 		t.Fatalf("extract aspnet_new: %v", err)
 	}
@@ -174,11 +174,11 @@ func TestDiff_NestJSFixtures(t *testing.T) {
 		t.Fatalf("load nestjs_new: %v", err)
 	}
 
-	oldAPI, err := extract.Extract(oldDoc)
+	oldAPI, err := extract.Extract(oldDoc, "")
 	if err != nil {
 		t.Fatalf("extract nestjs_old: %v", err)
 	}
-	newAPI, err := extract.Extract(newDoc)
+	newAPI, err := extract.Extract(newDoc, "")
 	if err != nil {
 		t.Fatalf("extract nestjs_new: %v", err)
 	}

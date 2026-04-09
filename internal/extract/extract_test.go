@@ -21,7 +21,7 @@ func TestExtractObjectSchema_AnyOfField(t *testing.T) {
 		"required": []any{"name"},
 	}
 
-	obj, err := extractObjectSchema(schema, spec.NewResolver(spec.Document{}))
+	obj, err := extractObjectSchema(schema, spec.NewResolver(spec.Document{}, ""))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -44,7 +44,7 @@ func TestExtractObjectSchema_RequiredFields(t *testing.T) {
 		"required": []any{"id"},
 	}
 
-	obj, err := extractObjectSchema(schema, spec.NewResolver(spec.Document{}))
+	obj, err := extractObjectSchema(schema, spec.NewResolver(spec.Document{}, ""))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -72,7 +72,7 @@ func TestExtractObjectSchema_RefProperty(t *testing.T) {
 		},
 	}
 
-	obj, err := extractObjectSchema(schema, spec.NewResolver(doc))
+	obj, err := extractObjectSchema(schema, spec.NewResolver(doc, ""))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -97,7 +97,7 @@ func TestExtractObjectSchema_NestedObject(t *testing.T) {
 		},
 	}
 
-	obj, err := extractObjectSchema(schema, spec.NewResolver(spec.Document{}))
+	obj, err := extractObjectSchema(schema, spec.NewResolver(spec.Document{}, ""))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -134,7 +134,7 @@ func TestExtractParameters_Ref(t *testing.T) {
 		map[string]any{"$ref": "#/components/parameters/UserId"},
 	}
 
-	out := extractParameters(params, spec.NewResolver(doc))
+	out := extractParameters(params, spec.NewResolver(doc, ""))
 	p, ok := out[struct{ In, Name string }{"path", "id"}]
 	if !ok {
 		t.Fatal("expected parameter 'id' in path to be extracted")
@@ -169,7 +169,7 @@ func TestExtractResponses_Ref(t *testing.T) {
 		},
 	}
 
-	out, err := extractResponses(op, spec.NewResolver(doc))
+	out, err := extractResponses(op, spec.NewResolver(doc, ""))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -206,7 +206,7 @@ func TestExtractRequestBody_Ref(t *testing.T) {
 		"requestBody": map[string]any{"$ref": "#/components/requestBodies/CreateUser"},
 	}
 
-	body, hasBody, err := extractRequestBody(op, spec.NewResolver(doc))
+	body, hasBody, err := extractRequestBody(op, spec.NewResolver(doc, ""))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -242,7 +242,7 @@ func TestExtractObjectSchema_AllOfTopLevel(t *testing.T) {
 		},
 	}
 
-	obj, err := extractObjectSchema(schema, spec.NewResolver(doc))
+	obj, err := extractObjectSchema(schema, spec.NewResolver(doc, ""))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -280,7 +280,7 @@ func TestExtractObjectSchema_AllOfProperty(t *testing.T) {
 		},
 	}
 
-	obj, err := extractObjectSchema(schema, spec.NewResolver(doc))
+	obj, err := extractObjectSchema(schema, spec.NewResolver(doc, ""))
 	if err != nil {
 		t.Fatal(err)
 	}
