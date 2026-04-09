@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/onatbaker/openapi-guard/internal/diff"
 	"github.com/onatbaker/openapi-guard/internal/extract"
@@ -65,13 +66,13 @@ func runDiff(args []string) int {
 		return 2
 	}
 
-	oldAPI, err := extract.Extract(oldDoc)
+	oldAPI, err := extract.Extract(oldDoc, filepath.Dir(*oldPath))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to extract old spec: %v\n", err)
 		return 2
 	}
 
-	newAPI, err := extract.Extract(newDoc)
+	newAPI, err := extract.Extract(newDoc, filepath.Dir(*newPath))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to extract new spec: %v\n", err)
 		return 2
