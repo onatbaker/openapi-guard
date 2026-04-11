@@ -299,6 +299,60 @@ func TestExtractObjectSchema_AllOfProperty(t *testing.T) {
 	}
 }
 
+func TestExtractObjectSchema_OneOfTopLevel(t *testing.T) {
+	doc := spec.Document{
+		"components": map[string]any{
+			"schemas": map[string]any{
+				"Cat": map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"name": map[string]any{"type": "string"},
+					},
+					"required": []any{"name"},
+				},
+			},
+		},
+	}
+	schema := map[string]any{
+		"oneOf": []any{
+			map[string]any{"$ref": "#/components/schemas/Cat"},
+		},
+	}
+
+	obj, err := extractObjectSchema(schema, spec.NewResolver(doc, ""))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if obj.Fields["name"].Type != "string" {
+		t.Errorf("expected name type 'string', got %q", obj.Fields["name"].Type)
+	}
+	if !obj.Required["name"] {
+		t.Error("expected 'name' to be required")
+	}
+}
+
+func TestExtractObjectSchema_OneOfProperty(t *testing.T) {
+	schema := map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"count": map[string]any{
+				"oneOf": []any{
+					map[string]any{"type": "integer"},
+					map[string]any{"type": "null"},
+				},
+			},
+		},
+	}
+
+	obj, err := extractObjectSchema(schema, spec.NewResolver(spec.Document{}, ""))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if obj.Fields["count"].Type != "integer" {
+		t.Errorf("expected count type 'integer', got %q", obj.Fields["count"].Type)
+	}
+}
+
 func TestExtractTypeAndEnum_Enum(t *testing.T) {
 	schema := map[string]any{
 		"type": "string",
