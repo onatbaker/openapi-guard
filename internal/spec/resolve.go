@@ -59,7 +59,7 @@ func (r *Resolver) resolveSchema(schema map[string]any, visited map[string]bool)
 
 	name, ok := parseLocalSchemaRef(ref)
 	if !ok {
-		return nil, fmt.Errorf("unsupported $ref %q (only #/components/schemas/<Name> is supported)", ref)
+		return nil, fmt.Errorf("unsupported local $ref %q", ref)
 	}
 
 	if visited[name] {
