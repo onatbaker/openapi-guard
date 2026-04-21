@@ -84,7 +84,7 @@ steps:
   - uses: actions/checkout@v4
 
   - name: Check for breaking API changes
-    uses: onatbaker/openapi-guard@v0.1.0
+    uses: onatbaker/openapi-guard@v0.2.0
     with:
       old-spec: specs/old.yaml
       new-spec: specs/new.yaml
@@ -101,7 +101,7 @@ If your spec is generated from code (FastAPI, Django, ASP.NET, NestJS), generate
   run: python scripts/export_openapi.py > specs/current.yaml
 
 - name: Check for breaking API changes
-  uses: onatbaker/openapi-guard@v0.1.0
+  uses: onatbaker/openapi-guard@v0.2.0
   with:
     old-spec: specs/main.yaml
     new-spec: specs/current.yaml
