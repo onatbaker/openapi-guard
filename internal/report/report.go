@@ -4,9 +4,17 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"sort"
 
 	"github.com/onatbaker/openapi-guard/internal/rules"
+)
+
+const (
+	colorRed    = "\033[31m"
+	colorYellow = "\033[33m"
+	colorCyan   = "\033[36m"
+	colorReset  = "\033[0m"
 )
 
 func Print(w io.Writer, results rules.Results, format string) error {
@@ -31,11 +39,39 @@ func printText(w io.Writer, results rules.Results) error {
 		return items[i].Message < items[j].Message
 	})
 
+	color := isTerminal(w)
 	for _, it := range items {
-		fmt.Fprintf(w, "%s: %s\n", it.Severity, it.Message)
+		if color {
+			fmt.Fprintf(w, "%s%s%s: %s\n", severityColor(it.Severity), it.Severity, colorReset, it.Message)
+		} else {
+			fmt.Fprintf(w, "%s: %s\n", it.Severity, it.Message)
+		}
 	}
 
 	return nil
+}
+
+func severityColor(s rules.Severity) string {
+	switch s {
+	case rules.Breaking:
+		return colorRed
+	case rules.Warning:
+		return colorYellow
+	default:
+		return colorCyan
+	}
+}
+
+func isTerminal(w io.Writer) bool {
+	f, ok := w.(*os.File)
+	if !ok {
+		return false
+	}
+	fi, err := f.Stat()
+	if err != nil {
+		return false
+	}
+	return fi.Mode()&os.ModeCharDevice != 0
 }
 
 func printJSON(w io.Writer, results rules.Results) error {
